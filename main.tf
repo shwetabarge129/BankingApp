@@ -12,7 +12,7 @@ provider "aws" {
   region     = "ap-south-1"
 }
 resource "aws_key_pair" "example" {
-  key_name = "key02"
+  key_name = "Star-TestKeys"
   public_key = file("~/.ssh/id_ed25519.pub")
 }
 
@@ -35,9 +35,9 @@ resource "aws_security_group" "allow_all" {
 }
 
 resource "aws_instance" "server" {
-  ami           = "ami-0522ab6e1ddcc7055"
-  instance_type = var.instance_type
-  key_name = "key02"
+  ami           = "ami-0dee22c13ea7a9a67"
+  instance_type = "t2.medium"
+  key_name = "Star-TestKeys"
   vpc_security_group_ids = [aws_security_group.allow_all.id]
 
   tags = {
@@ -59,7 +59,7 @@ resource "aws_instance" "server" {
       private_key = file(var.ssh_private_key)
    }
   provisioner "local-exec" {
-    command = "echo '${self.public_ip} ansible_user=ubuntu ansible_private_key_file=~/.ssh/id_ed25519' > inventory.ini"
+    command = "echo '${self.public_ip} ansible_user=ubuntu ansible_private_key_file=~/.ssh/id_ecdsa' > inventory.ini"
   }
   provisioner "local-exec" {
         command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i inventory.ini -e 'ansible_python_interpreter=/usr/bin/python3' ansible-playbook.yml"
