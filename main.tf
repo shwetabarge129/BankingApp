@@ -13,7 +13,7 @@ provider "aws" {
 }
 resource "aws_key_pair" "example" {
   key_name = "Star-TestKeys"
-  public_key = file("~/.ssh/id_ed25519.pub")
+  public_key = file("~/.ssh/id_ecdsa.pub")
 }
 
 resource "aws_security_group" "allow_all" {
