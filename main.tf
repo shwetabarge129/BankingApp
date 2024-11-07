@@ -1,3 +1,4 @@
+#Initialize Terraform
 terraform {
   required_providers {
     aws = {
@@ -6,62 +7,118 @@ terraform {
     }
   }
 }
-
-# Configure the AWS Provider
+ 
 provider "aws" {
   region     = "ap-south-1"
 }
-resource "aws_key_pair" "example" {
-  key_name = "Star-TestKeys"
-  public_key = file("~/.ssh/id_ecdsa.pub")
-}
-
-resource "aws_security_group" "allow_all" {
-  name_prefix = "allow_all"
-
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"  # This allows all protocols (TCP, UDP, ICMP)
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"  # This allows all protocols (TCP, UDP, ICMP)
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_instance" "server" {
-  ami           = "ami-0dee22c13ea7a9a67"
-  instance_type = "t2.medium"
-  key_name = "Star-TestKeys"
-  vpc_security_group_ids = [aws_security_group.allow_all.id]
-
+ 
+ 
+# Create VPC
+ 
+resource "aws_vpc" "myvpc9" {
+  cidr_block       = "10.0.0.0/16"
+  instance_tenancy = "default"
+ 
   tags = {
-    Name = "${terraform.workspace}_server"
-  }
-  provisioner "remote-exec" {
-    inline = [
-      "cat /etc/os-release",
-      "mkdir -p /home/ubuntu/.ssh",
-      "echo '${var.ssh_public_key}' >> /home/ubuntu/.ssh/authorized_keys",
-      "chmod 600 /home/ubuntu/.ssh/authorized_keys",
-      "chown -R ubuntu:ubuntu /home/ubuntu/.ssh"
-    ]
-  }
-  connection {
-      type        = "ssh"
-      host        = self.public_ip
-      user        = "ubuntu"
-      private_key = file(var.ssh_private_key)
-   }
-  provisioner "local-exec" {
-    command = "echo '${self.public_ip} ansible_user=ubuntu ansible_private_key_file=~/.ssh/id_ecdsa' > inventory.ini"
-  }
-  provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i inventory.ini -e 'ansible_python_interpreter=/usr/bin/python3' ansible-playbook.yml"
+    Name = "myvpc9"
   }
 }
+ 
+# Create Subnet
+ 
+resource "aws_subnet" "mysubnet9" {
+  vpc_id     = aws_vpc.myvpc9.id
+  cidr_block = "10.0.1.0/24"
+ 
+  tags = {
+    Name = "mysubnet9"
+  }
+}
+ 
+# Internet Gateway
+ 
+resource "aws_internet_gateway" "mygw9" {
+  vpc_id = aws_vpc.myvpc9.id
+ 
+  tags = {
+    Name = "mygw9"
+  }
+}
+ 
+# Route Table
+ 
+resource "aws_route_table" "myrt9" {
+  vpc_id = aws_vpc.myvpc9.id
+ 
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.mygw9.id
+  }
+ 
+  tags = {
+    Name = "myrt9"
+  }
+}
+ 
+# Route Table Association
+ 
+resource "aws_route_table_association" "myrta9" {
+  subnet_id      = aws_subnet.mysubnet9.id
+  route_table_id = aws_route_table.myrt9.id
+}
+ 
+# Security Groups
+ 
+resource "aws_security_group" "mysg9" {
+  name        = "mysg9"
+  description = "Allow inbound traffic"
+  vpc_id      = aws_vpc.myvpc9.id
+ 
+  ingress {
+    description      = "HTTP"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+ 
+  ingress {
+    description      = "SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+ 
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+ 
+  tags = {
+    Name = "mysg9"
+  }
+}
+ 
+# Create Instance
+ 
+resource "aws_instance" "instance9" {
+  ami           = "ami-09b0a86a2c84101e1"
+  instance_type = "t2.micro"
+  availability_zone = "ap-south-1a"
+  associate_public_ip_address = true
+  subnet_id = aws_subnet.mysubnet9.id
+  vpc_security_group_ids = [aws_security_group.mysg9.id]
+key_name = "sa-keytest"
+user_data  = <<-EOF
+#!/bin/bash
+     sudo apt-get update -y
+EOF
+tags = {
+Name = "Prod-Server"
+}
+}
+has context menu
